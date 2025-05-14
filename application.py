@@ -1,16 +1,20 @@
-from fastapi import FastAPI, UploadFile, File
+import tempfile
+from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
 from models.model_handler import load_model, predict_violence
 
-app = FastAPI()
-# model = load_model("resources/my_model.keras")
+router = APIRouter()
+model = load_model("resources/rgb_model_new01.keras")
 
-
-@app.post("/predict")
+@router.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
-        # score = predict_violence(model, await file.read())
-        return JSONResponse(content={"violence_score": round(0.5, 4)})
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        score = predict_violence(model, tmp_path)
+        return JSONResponse(content={"violence_score": round(score * 100, 2)})
+
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
-
