@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 def main():
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 

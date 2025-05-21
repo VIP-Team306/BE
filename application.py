@@ -1,13 +1,16 @@
 import tempfile
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
+from typing import List
+
 from models.model_handler import load_model, predict_violence
 
 router = APIRouter()
 model = load_model("resources/rgb_model_new01.keras")
 
+
 @router.post("/predict")
-async def predict(files: list[UploadFile] = File(...)):
+async def predict(files: List[UploadFile] = File(...)):
     try:
         results = []
         for file in files:
