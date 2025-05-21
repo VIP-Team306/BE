@@ -7,7 +7,7 @@ router = APIRouter()
 model = load_model("resources/rgb_model_new01.keras")
 
 @router.post("/predict")
-async def predict(files: list[UploadFile] = File(...)):  # Expect multiple files
+async def predict(files: list[UploadFile] = File(...)):
     try:
         results = []
         for file in files:
