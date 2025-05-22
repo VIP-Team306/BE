@@ -29,7 +29,7 @@ def load_video(path, resize=(IMG_SIZE, IMG_SIZE), max_frames=MAX_SEQ_LENGTH):
         cap.release()
 
     frames = np.array(frames, dtype=np.float32)
-    frames /= 255.0  # Normalize to [0, 1]
+    # frames /= 255.0  // Normalize to [0, 1]
     return frames
 
 
@@ -46,7 +46,7 @@ def predict_violence(model, video_path):
     print(f"Prediction: {prediction}")
 
     violence_score = float(prediction[0][0])  # If this is between 0 and 1, you can scale it
-    violence_score_percentage = round(violence_score * 100, 2)  # Convert to percentage
+    violence_score_percentage = round(violence_score, 2)  # Convert to percentage
     return violence_score_percentage
 
 

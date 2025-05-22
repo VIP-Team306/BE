@@ -6,7 +6,7 @@ from typing import List
 from models.model_handler import load_model, predict_violence
 
 router = APIRouter()
-model = load_model("resources/rgb_model_new01.keras")
+model = load_model("resources/rgb_model_new001.h5")
 
 
 @router.post("/predict")
