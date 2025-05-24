@@ -173,3 +173,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Others
+misc.xml
+modules.xml
+profiles_settings.xml
+Project_Default.xml
+vcs.xml
+VIP306-BE.iml
