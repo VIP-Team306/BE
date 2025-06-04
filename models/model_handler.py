@@ -50,56 +50,74 @@ def describe_violence_with_blip(video_path: str, load_video_fn, violence_score: 
     return descriptions
 
 
-def load_video(path, resize=(IMG_SIZE, IMG_SIZE), max_frames=MAX_SEQ_LENGTH):
-    cap = cv2.VideoCapture(path)
-    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    step = max(1, int(length / max_frames))
-    counter = 0
-    frames = []
+def load_video_segments(video_path, segment_seconds=8, stride_seconds=4, target_frames=24, resize=(84, 84)):
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    try:
-        while True:
-            counter += 1
+    frames_per_segment = int(fps * segment_seconds)
+    stride_frames = int(fps * stride_seconds)
+
+    segments = []
+    timestamps = []
+
+    current_start = 0
+
+    while current_start + frames_per_segment <= total_frames:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, current_start)
+        segment = []
+
+        for _ in range(frames_per_segment):
             ret, frame = cap.read()
             if not ret:
                 break
-            frame = cv2.resize(frame, resize)  # Resize to 84x84
-            frame = frame[:, :, [2, 1, 0]]  # Convert BGR to RGB
-            if counter % step == 0:
-                frames.append(frame)
-            if len(frames) == max_frames:
-                break
-    finally:
-        cap.release()
+            frame = cv2.resize(frame, resize)
+            frame = frame[:, :, [2, 1, 0]]  # BGR to RGB
+            segment.append(frame)
 
-    frames = np.array(frames, dtype=np.float32)
-    # frames /= 255.0
-    return frames
+        if not segment:
+            break
+
+        if len(segment) >= target_frames:
+            segment = segment[:target_frames]
+        else:
+            segment += [segment[-1]] * (target_frames - len(segment))  # pad
+
+        segments.append(np.array(segment, dtype=np.float32))
+        timestamps.append((
+            round(current_start / fps, 2),
+            round((current_start + frames_per_segment) / fps, 2)
+        ))
+
+        current_start += stride_frames
+
+    cap.release()
+    return segments, timestamps
 
 
-def predict_violence(model, video_path):
-    frames = load_video(video_path)
+def predict_violence_per_segment(model, video_path, threshold=0.5):
+    segments, timestamps = load_video_segments(video_path)
 
-    print(f"Frames shape: {frames.shape}")
+    for i, (segment, (start, end)) in enumerate(zip(segments, timestamps)):
+        input_tensor = np.expand_dims(segment, axis=0)  # shape: (1, 24, 84, 84, 3)
+        try:
+            print(start, end)
+            prediction = model.predict(input_tensor, verbose=0)
+            violence_score = float(prediction[0][0])
+            violence_score_percentage = round(violence_score, 2)
 
-    input_tensor = np.expand_dims(frames, axis=0)
-    print(f"Input tensor shape: {input_tensor.shape}")
+            if violence_score > threshold:
+                return [{
+                    "segment_index": i,
+                    "start_time": round(start, 2),
+                    "end_time": round(end, 2),
+                    "score": violence_score_percentage
+                }]
+        except Exception as e:
+            print(f"Error predicting segment {i}: {e}")
 
-    prediction = model.predict(input_tensor)
-
-    print(f"Prediction: {prediction}")
-
-    violence_score = float(prediction[0][0])
-    print(f"Violence score: {violence_score * 100}%")
-    violence_score_percentage = round(violence_score, 2)  # Round to 2 decimal places
-    print(f"Rounded violence score: {violence_score_percentage}")
-
-    if violence_score_percentage > 0.5:
-        descriptions = describe_violence_with_blip(video_path, load_video, violence_score_percentage)
-        for desc in descriptions:
-            print(desc)
-
-    return violence_score_percentage
+    # Return empty list if no violent segments found
+    return []
 
 
 def load_model(model_path):

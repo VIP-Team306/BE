@@ -1,9 +1,10 @@
 import tempfile
-from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import JSONResponse
 from typing import List
 
-from models.model_handler import load_model, predict_violence
+from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import JSONResponse
+
+from models.model_handler import *
 
 router = APIRouter()
 model = load_model("resources/rgb_model_new001.h5")
@@ -18,8 +19,15 @@ async def predict(files: List[UploadFile] = File(...)):
                 tmp.write(await file.read())
                 tmp_path = tmp.name
 
-            score = predict_violence(model, tmp_path)
-            results.append({"file_name": file.filename, "violence_score": round(score * 100, 2)})
+            score_results = predict_violence_per_segment(model, tmp_path, threshold=0.5)
+            print("Detected violent segments:")
+            for res in score_results:
+                print(f"From {res['start_time']}s to {res['end_time']}s: {round(res['score'] * 100, 2)}% violent")
+                results.append({"file_name": file.filename,
+                                "start_time": res['start_time'],
+                                "end_time": res['end_time'],
+                                "violence_score": round(res['score'] * 100, 2)})
+
         return JSONResponse(content={"results": results})
 
     except Exception as e:
