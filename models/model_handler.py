@@ -28,7 +28,7 @@ def get_caption(image: Image.Image, prompt: str) -> str:
     return caption
 
 
-def describe_violence_with_blip(video_path: str, load_video_fn, violence_score: float, max_frames: int = 1):
+def describe_violence_with_blip(video_path: str, load_video_fn, max_frames: int = 1):
     frames = load_video_fn(video_path)
     if len(frames) == 0:
         return ["No frames extracted from the video."]
@@ -61,35 +61,57 @@ def load_video_segments(video_path, segment_seconds=8, stride_seconds=4, target_
     segments = []
     timestamps = []
 
-    current_start = 0
-
-    while current_start + frames_per_segment <= total_frames:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, current_start)
+    if total_frames < frames_per_segment:
+        # Short video fallback
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         segment = []
 
-        for _ in range(frames_per_segment):
+        while True:
             ret, frame = cap.read()
             if not ret:
                 break
             frame = cv2.resize(frame, resize)
-            frame = frame[:, :, [2, 1, 0]]  # BGR to RGB
+            frame = frame[:, :, [2, 1, 0]]
             segment.append(frame)
 
-        if not segment:
-            break
+        if segment:
+            if len(segment) >= target_frames:
+                segment = segment[:target_frames]
+            else:
+                segment += [segment[-1]] * (target_frames - len(segment))  # pad
 
-        if len(segment) >= target_frames:
-            segment = segment[:target_frames]
-        else:
-            segment += [segment[-1]] * (target_frames - len(segment))  # pad
+            segments.append(np.array(segment, dtype=np.float32))
+            timestamps.append((0.0, round(total_frames / fps, 2)))
 
-        segments.append(np.array(segment, dtype=np.float32))
-        timestamps.append((
-            round(current_start / fps, 2),
-            round((current_start + frames_per_segment) / fps, 2)
-        ))
+    else:
+        current_start = 0
+        while current_start + frames_per_segment <= total_frames:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, current_start)
+            segment = []
 
-        current_start += stride_frames
+            for _ in range(frames_per_segment):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame = cv2.resize(frame, resize)
+                frame = frame[:, :, [2, 1, 0]]
+                segment.append(frame)
+
+            if not segment:
+                break
+
+            if len(segment) >= target_frames:
+                segment = segment[:target_frames]
+            else:
+                segment += [segment[-1]] * (target_frames - len(segment))  # pad
+
+            segments.append(np.array(segment, dtype=np.float32))
+            timestamps.append((
+                round(current_start / fps, 2),
+                round((current_start + frames_per_segment) / fps, 2)
+            ))
+
+            current_start += stride_frames
 
     cap.release()
     return segments, timestamps
@@ -107,6 +129,7 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
             violence_score_percentage = round(violence_score, 2)
 
             if violence_score > threshold:
+                # print(describe_violence_with_blip(video_path, load_video_segments))
                 return [{
                     "segment_index": i,
                     "start_time": round(start, 2),
