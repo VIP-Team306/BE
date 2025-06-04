@@ -148,15 +148,6 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
             print(start, end)
             prediction = model.predict(input_tensor, verbose=0)
             violence_score = float(prediction[0][0])
-            violence_score_percentage = round(violence_score, 2)
-
-            if most_violence_video["violence_score"] < violence_score:
-                most_violence_video = {
-                    "segment_index": i,
-                    "start_time": round(start, 2),
-                    "end_time": round(end, 2),
-                    "score": violence_score_percentage
-                }
 
             if violence_score > threshold:
                 # violent_frames = extract_frames_from_segment(video_path, start, end)
@@ -168,8 +159,16 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
                     "segment_index": i,
                     "start_time": round(start, 2),
                     "end_time": round(end, 2),
-                    "score": violence_score_percentage
+                    "score": round(violence_score, 2)
                 }]
+
+            if most_violence_video["violence_score"] < violence_score:
+                most_violence_video = {
+                    "segment_index": i,
+                    "start_time": round(start, 2),
+                    "end_time": round(end, 2),
+                    "score": violence_score
+                }
 
         except Exception as e:
             print(f"Error predicting segment {i}: {e}")
