@@ -20,9 +20,11 @@ async def predict(files: List[UploadFile] = File(...)):
                 tmp_path = tmp.name
 
             score_results = predict_violence_per_segment(model, tmp_path, threshold=0.5)
-            print("Detected violent segments:")
             for res in score_results:
+                print(f"File name: {file.filename}")
+                print("Detected violent segments:")
                 print(f"From {res['start_time']}s to {res['end_time']}s: {round(res['score'], 2)}% violent")
+                print(f"With the description: {res['description']}")
                 results.append({"file_name": file.filename,
                                 "start_time": res['start_time'],
                                 "end_time": res['end_time'],

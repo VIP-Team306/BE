@@ -145,7 +145,7 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
     for i, (segment, (start, end)) in enumerate(zip(segments, timestamps)):
         input_tensor = np.expand_dims(segment, axis=0)  # shape: (1, 24, 84, 84, 3)
         try:
-            print(start, end)
+            # print(start, end)
             prediction = model.predict(input_tensor, verbose=0)
             violence_score = float(prediction[0][0])
 
