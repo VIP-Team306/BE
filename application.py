@@ -26,6 +26,7 @@ async def predict(files: List[UploadFile] = File(...)):
                 results.append({"file_name": file.filename,
                                 "start_time": res['start_time'],
                                 "end_time": res['end_time'],
+                                "description": res['description'],
                                 "violence_score": round(res['score'], 2)})
 
         return JSONResponse(content={"results": results})

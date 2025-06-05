@@ -150,8 +150,8 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
             violence_score = float(prediction[0][0])
 
             if violence_score > threshold:
-                # violent_frames = extract_frames_from_segment(video_path, start, end)
-                # descriptions = describe_violence_with_blip_from_frames(violent_frames, max_frames=3)
+                violent_frames = extract_frames_from_segment(video_path, start, end)
+                descriptions = describe_violence_with_blip_from_frames(violent_frames, max_frames=3)
                 # for line in descriptions:
                 #     print(line)
 
@@ -159,6 +159,7 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
                     "segment_index": i,
                     "start_time": round(start, 2),
                     "end_time": round(end, 2),
+                    "description": descriptions[0],
                     "score": round(violence_score, 2)
                 }]
 
@@ -167,6 +168,7 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
                     "segment_index": i,
                     "start_time": round(start, 2),
                     "end_time": round(end, 2),
+                    "description": None,
                     "score": violence_score
                 }
 
