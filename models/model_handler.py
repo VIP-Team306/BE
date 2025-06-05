@@ -159,7 +159,7 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
                     "segment_index": i,
                     "start_time": round(start, 2),
                     "end_time": round(end, 2),
-                    "description": descriptions[0],
+                    "description": descriptions[0].removeprefix("Frame 1: "),
                     "score": round(violence_score, 2)
                 }]
 
