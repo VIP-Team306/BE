@@ -7,8 +7,13 @@ from fastapi.responses import JSONResponse
 from models.model_handler import *
 
 router = APIRouter()
-model = load_model("resources/rgb_model_new001.h5")
-
+try:
+    print("Loading model...")
+    model = load_model("resources/rgb_model_new001.h5")
+    print("Model loaded.")
+except Exception as e:
+    print(f"Failed to load model: {e}")
+    raise
 
 @router.post("/predict")
 async def predict(files: List[UploadFile] = File(...)):

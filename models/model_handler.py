@@ -9,19 +9,26 @@ IMG_SIZE = 84
 MAX_SEQ_LENGTH = 24
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-processor = Blip2Processor.from_pretrained("Salesforce/blip2-flan-t5-xl")
-model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-flan-t5-xl").to(device)
+_blip_model = None
+_blip_processor = None
 
-
+def get_blip_models():
+    global _blip_model, _blip_processor
+    if _blip_model is None or _blip_processor is None:
+        print("Loading BLIP2 model and processor...")
+        _blip_processor = Blip2Processor.from_pretrained("Salesforce/blip2-flan-t5-xl")
+        _blip_model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-flan-t5-xl").to(device)
+    return _blip_processor, _blip_model
 def get_caption(image: Image.Image, prompt: str) -> str:
+    processor, model = get_blip_models()
     inputs = processor(images=image, text=prompt, return_tensors="pt").to(device)
     with torch.no_grad():
         generated_ids = model.generate(
             **inputs,
             max_new_tokens=50,
-            do_sample=True,  # Enable sampling for varied outputs
-            top_p=0.9,  # Nucleus sampling parameter
-            temperature=0.7,  # Temperature controls randomness
+            do_sample=True,
+            top_p=0.9,
+            temperature=0.7,
             num_return_sequences=1,
         )
     caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
