@@ -14,35 +14,50 @@ model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-flan-t5-
 
 
 def get_caption(image: Image.Image, prompt: str) -> str:
+    # Preprocess image + prompt into tensors for the model
     inputs = processor(images=image, text=prompt, return_tensors="pt").to(device)
+
+    # Disable gradient calculation (inference only, no training)
     with torch.no_grad():
+        # Generate caption using sampling for more varied text
         generated_ids = model.generate(
             **inputs,
-            max_new_tokens=50,
-            do_sample=True,  # Enable sampling for varied outputs
-            top_p=0.9,  # Nucleus sampling parameter
-            temperature=0.7,  # Temperature controls randomness
-            num_return_sequences=1,
+            max_new_tokens=50,  # Limit caption length
+            do_sample=True,  # Enable random sampling instead of greedy decoding
+            top_p=0.9,  # Use nucleus sampling (keep top 90% prob mass)
+            temperature=0.7,  # Control randomness (lower = safer, higher = more random)
+            num_return_sequences=1,  # Only generate one caption
         )
+
+    # Decode tokens into text, remove special tokens, and strip whitespace
     caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
     return caption
 
 
 def describe_violence_with_blip_from_frames(frames: list[np.ndarray], max_frames: int = 1) -> list[str]:
+    # If no frames are provided, return a default message
     if len(frames) == 0:
         return ["No frames extracted."]
 
+    # Pick evenly spaced frames up to max_frames
     step = max(1, len(frames) // max_frames)
     selected_frames = frames[::step][:max_frames]
 
     descriptions = []
     for idx, frame in enumerate(selected_frames):
-        # Ensure float32 -> uint8 [0–255]
+        # Convert frame to [0–255] uint8 image format
         frame_uint8 = np.clip(frame * 255.0, 0, 255).astype(np.uint8)
+
+        # Convert numpy array to PIL image and resize to model input size
         image = Image.fromarray(frame_uint8).resize((224, 224))
 
+        # Custom prompt for each frame
         prompt = f"Frame {idx + 1}: Describe any violent or aggressive actions in this scene."
+
+        # Get caption from BLIP model
         description = get_caption(image, prompt)
+
+        # Save frame number + description
         descriptions.append(f"Frame {idx + 1}: {description}")
 
     return descriptions
@@ -141,7 +156,7 @@ def load_video_segments(video_path, segment_seconds=8, stride_seconds=4, target_
 
 def predict_violence_per_segment(model, video_path, threshold=0.5):
     segments, timestamps = load_video_segments(video_path)
-    most_violence_video = {"violence_score": 0}
+    most_violence_video = {"score": 0}
     for i, (segment, (start, end)) in enumerate(zip(segments, timestamps)):
         input_tensor = np.expand_dims(segment, axis=0)  # shape: (1, 24, 84, 84, 3)
         try:
@@ -151,7 +166,7 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
 
             if violence_score > threshold:
                 violent_frames = extract_frames_from_segment(video_path, start, end)
-                descriptions = describe_violence_with_blip_from_frames(violent_frames, max_frames=3)
+                descriptions = describe_violence_with_blip_from_frames(violent_frames)
                 # for line in descriptions:
                 #     print(line)
 
@@ -163,13 +178,15 @@ def predict_violence_per_segment(model, video_path, threshold=0.5):
                     "score": round(violence_score, 2)
                 }]
 
-            if most_violence_video["violence_score"] < violence_score:
+            #for no violence videos
+            if most_violence_video["score"] < violence_score:
                 most_violence_video = {
                     "segment_index": i,
                     "start_time": round(start, 2),
                     "end_time": round(end, 2),
                     "description": None,
-                    "score": violence_score
+                    "score": violence_score,
+                    #"violence_score": violence_score
                 }
 
         except Exception as e:

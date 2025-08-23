@@ -25,6 +25,7 @@ async def predict(files: List[UploadFile] = File(...)):
                 print("Detected violent segments:")
                 print(f"From {res['start_time']}s to {res['end_time']}s: {round(res['score'], 2)}% violent")
                 print(f"With the description: {res['description']}")
+
                 results.append({"file_name": file.filename,
                                 "start_time": res['start_time'],
                                 "end_time": res['end_time'],
